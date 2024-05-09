@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:Base64ClipboardConverter"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800"
+        Title="Clipboard Image Base64 Converter" Height="450" Width="800"
         Activated="Window_Activated">
     <Grid>
         <Grid.ColumnDefinitions>
@@ -18,6 +18,8 @@
         <DockPanel Grid.Column="2" LastChildFill="True">
             <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal">
                 <Button Content="Copy" Margin="5" Width="120" Click="CopyButton_Click"/>
+                <Label Content="Markdown Template: "/>
+                <TextBox IsReadOnly="True" Name="TemplateTextBoxControl" VerticalAlignment="Center"/>
             </StackPanel>
             <TextBox DockPanel.Dock="Top" IsReadOnly="True" Name="TextBoxControl" VerticalScrollBarVisibility="Auto"/>
         </DockPanel>

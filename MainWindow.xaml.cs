@@ -1,7 +1,6 @@
 ﻿using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace Base64ClipboardConverter
@@ -12,6 +11,7 @@ namespace Base64ClipboardConverter
         public MainWindow()
         {
             InitializeComponent();
+            TemplateTextBoxControl.Text = "![Hello World](data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEYAAAAUCAAAAAAVAxSkAAABrUlEQVQ4y+3TPUvDQBgH8OdDOGa+oUMgk2MpdHIIgpSUiqC0OKirgxYX8QVFRQRpBRF8KShqLbgIYkUEteCgFVuqUEVxEIkvJFhae3m8S2KbSkcFBw9yHP88+eXucgH8kQZ/jSm4VDaIy9RKCpKac9NKgU4uEJNwhHhK3qvPBVO8rxRWmFXPF+NSM1KVMbwriAMwhDgVcrxeMZm85GR0PhvGJAAmyozJsbsxgNEir4iEjIK0SYqGd8sOR3rJAGN2BCEkOxhxMhpd8Mk0CXtZacxi1hr20mI/rzgnxayoidevcGuHXTC/q6QuYSMt1jC+gBIiMg12v2vb5NlklChiWnhmFZpwvxDGzuUzV8kOg+N8UUvNBp64vy9q3UN7gDXhwWLY2nMC3zRDibfsY7wjEkY79CdMZhrxSqqzxf4ZRPXwzWJirMicDa5KwiPeARygHXKNMQHEy3rMopDR20XNZGbJzUtrwDC/KshlLDWyqdmhxZzCsdYmf2fWZPoxCEDyfIvdtNQH0PRkH6Q51g8rFO3Qzxh2LbItcDCOpmuOsV7ntNaERe3v/lP/zO8yn4N+yNPrekmPAAAAAElFTkSuQmCC)";
         }
         #endregion
 
@@ -20,31 +20,26 @@ namespace Base64ClipboardConverter
         {
             if (Clipboard.ContainsImage())
             {
-                // Get image source
-                ImageSource image = BitmapFrame.Create(ImageFromClipboardDib());
-
-                MemoryStream stream = ImageFromClipboardDib()!;
+                // Convert image source
+                MemoryStream stream = GetImageFromClipboardDib()!;
                 byte[] bytes = new byte[stream.Length];
                 stream.Read(bytes, 0, bytes.Length);
                 string base64 = "data:image/jpg;base64," + Convert.ToBase64String(bytes);
 
                 // Set image
-                ImageControl.Source = image;
+                ImageControl.Source = BitmapFrame.Create(GetImageFromClipboardDib()); // Notice we cannot just use Clipboard.GetImage() due to WPF's Image control's format requirements.
                 // Set text
                 TextBoxControl.Text = base64;
             }
         }
         private void CopyButton_Click(object sender, RoutedEventArgs e)
-        {
-            Clipboard.SetText(TextBoxControl.Text);
-        }
+            => Clipboard.SetText(TextBoxControl.Text);
         #endregion
 
-        #region Utility Helper
-        private MemoryStream? ImageFromClipboardDib()
+        #region Low-Level Helper
+        private static MemoryStream? GetImageFromClipboardDib()
         {
-            MemoryStream? ms = Clipboard.GetData("DeviceIndependentBitmap") as MemoryStream;
-            if (ms != null)
+            if (Clipboard.GetData("DeviceIndependentBitmap") is MemoryStream ms)
             {
                 byte[] dibBuffer = new byte[ms.Length];
                 ms.Read(dibBuffer, 0, dibBuffer.Length);
@@ -55,12 +50,14 @@ namespace Base64ClipboardConverter
                 int infoHeaderSize = infoHeader.biSize;
                 int fileSize = fileHeaderSize + infoHeader.biSize + infoHeader.biSizeImage;
 
-                BITMAPFILEHEADER fileHeader = new BITMAPFILEHEADER();
-                fileHeader.bfType = BITMAPFILEHEADER.BM;
-                fileHeader.bfSize = fileSize;
-                fileHeader.bfReserved1 = 0;
-                fileHeader.bfReserved2 = 0;
-                fileHeader.bfOffBits = fileHeaderSize + infoHeaderSize + infoHeader.biClrUsed * 4;
+                BITMAPFILEHEADER fileHeader = new()
+                {
+                    bfType = BITMAPFILEHEADER.BM,
+                    bfSize = fileSize,
+                    bfReserved1 = 0,
+                    bfReserved2 = 0,
+                    bfOffBits = fileHeaderSize + infoHeaderSize + infoHeader.biClrUsed * 4
+                };
 
                 byte[] fileHeaderBytes = BinaryStructConverter.ToByteArray<BITMAPFILEHEADER>(fileHeader);
 
@@ -109,7 +106,7 @@ namespace Base64ClipboardConverter
                     int size = Marshal.SizeOf(typeof(T));
                     ptr = Marshal.AllocHGlobal(size);
                     Marshal.Copy(bytes, 0, ptr, size);
-                    object obj = Marshal.PtrToStructure(ptr, typeof(T));
+                    object? obj = Marshal.PtrToStructure(ptr, typeof(T));
                     return (T)obj;
                 }
                 finally
